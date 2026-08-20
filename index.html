@@ -1,289 +1,54 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-HK">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-
-<title>小西灣 Dashboard</title>
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#09111f">
+<title>小西灣 Dashboard iOS12</title>
 <style>
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
-
-body{
-    background:#0b0b0b;
-    color:white;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    padding:20px;
-}
-
-.clock{
-    text-align:center;
-    font-size:80px;
-    font-weight:700;
-    margin-top:10px;
-}
-
-.date{
-    text-align:center;
-    color:#aaa;
-    margin-bottom:20px;
-}
-
-.weather{
-    background:#181818;
-    border-radius:20px;
-    padding:20px;
-    margin-bottom:20px;
-}
-
-.weather-title{
-    font-size:28px;
-}
-
-.temp{
-    font-size:64px;
-    font-weight:bold;
-    margin-top:10px;
-}
-
-.weather-info{
-    color:#ccc;
-    margin-top:8px;
-    font-size:20px;
-}
-
-.grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-    gap:15px;
-}
-
-.card{
-    background:#181818;
-    border-radius:20px;
-    padding:18px;
-}
-
-.route{
-    font-size:42px;
-    font-weight:bold;
-    color:#57d3ff;
-}
-
-.eta{
-    display:flex;
-    justify-content:space-between;
-    margin-top:12px;
-}
-
-.time{
-    font-size:28px;
-    background:#262626;
-    padding:10px 14px;
-    border-radius:12px;
-    min-width:78px;
-    text-align:center;
-}
-
-.updated{
-    text-align:center;
-    color:#888;
-    margin-top:20px;
-}
-
-@media (max-width:768px){
-
-.clock{
-    font-size:64px;
-}
-
-.temp{
-    font-size:56px;
-}
-
-.route{
-    font-size:36px;
-}
-
-.time{
-    font-size:24px;
-}
-
-}
-
+body{margin:0;background:#07101d;color:#f6fbff;font-family:-apple-system,sans-serif}
+.main{display:flex;height:100vh;padding:10px;box-sizing:border-box}
+.left{width:32%;background:#12243b;border-radius:16px;padding:20px;text-align:center}
+.right{flex:1;padding-left:10px;overflow:auto}
+.clock{font-size:72px;font-weight:bold}.seconds{font-size:28px;color:#65dcff}
+.temp{font-size:72px;color:#ffd66b}.route-card{background:#14243a;margin-bottom:10px;border-radius:12px;padding:10px}
+.route{font-size:40px;color:#65dcff;font-weight:bold}.time{display:inline-block;margin:5px;padding:8px 12px;background:#0b1726;border-radius:8px;font-size:28px}
+.refresh-btn{position:fixed;top:20px;left:20px;width:56px;height:56px;border-radius:50%}
 </style>
 </head>
 <body>
-
-<div class="clock" id="clock">--:--</div>
-<div class="date" id="date"></div>
-
-<div class="weather">
-    <div class="weather-title">📍 小西灣</div>
-    <div class="temp" id="temperature">--°C</div>
-    <div class="weather-info" id="humidity">濕度 --%</div>
+<button class="refresh-btn" id="refreshBtn">↻</button>
+<div class="main">
+<div class="left">
+<div class="clock"><span id="clock">--:--</span><span class="seconds" id="seconds">:--</span></div>
+<div id="date">載入中</div>
+<div id="weatherIcon">🌤️</div>
+<div>香港島・小西灣</div>
+<div class="temp" id="temperature">--°</div>
+<div id="humidity">濕度 --%</div>
+<div id="weatherStatus">正在更新天氣</div>
+<div id="updated">巴士資料載入中</div>
 </div>
-
-<div class="grid" id="busContainer"></div>
-
-<div class="updated" id="updatedAt">
-等待更新...
+<div class="right" id="routes"></div>
 </div>
-
 <script>
-
-const ROUTES = [
-  "788",
-  "789",
-  "8P",
-  "82",
-  "82X",
-  "85"
-];
-
-const STOP_ID = "ISR";
-
-function updateClock(){
-
-    const now = new Date();
-
-    document.getElementById("clock").innerHTML =
-        now.toLocaleTimeString(
-            "zh-HK",
-            {
-                hour:"2-digit",
-                minute:"2-digit"
-            }
-        );
-
-    document.getElementById("date").innerHTML =
-        now.toLocaleDateString("zh-HK",{
-            weekday:"long",
-            year:"numeric",
-            month:"numeric",
-            day:"numeric"
-        });
-
-}
-
-function formatTime(eta){
-
-    if(!eta) return "--";
-
-    return new Date(eta)
-        .toLocaleTimeString(
-            "zh-HK",
-            {
-                hour:"2-digit",
-                minute:"2-digit"
-            }
-        );
-
-}
-
-async function loadWeather(){
-
-    try{
-
-        const response = await fetch(
-        "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc"
-        );
-
-        const data = await response.json();
-
-        const temp =
-            data.temperature.data[1]?.value ||
-            data.temperature.data[0]?.value;
-
-        document.getElementById("temperature")
-            .innerHTML = temp + "°C";
-
-        document.getElementById("humidity")
-            .innerHTML =
-            "濕度 " +
-            data.humidity.data[0].value +
-            "%";
-
-    }catch(e){
-
-        console.log(e);
-
-    }
-
-}
-
-async function loadBus(){
-
-    const container =
-        document.getElementById("busContainer");
-
-    container.innerHTML = "";
-
-    for(const route of ROUTES){
-
-        try{
-
-            const url =
-            `https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${STOP_ID}/${route}`;
-
-            const response =
-                await fetch(url);
-
-            const data =
-                await response.json();
-
-            const times =
-                data.data
-                .filter(x => x.eta)
-                .slice(0,3)
-                .map(x => formatTime(x.eta));
-
-            while(times.length < 3){
-                times.push("--");
-            }
-
-            container.innerHTML += `
-            <div class="card">
-                <div class="route">${route}</div>
-                <div class="eta">
-                    <div class="time">${times[0]}</div>
-                    <div class="time">${times[1]}</div>
-                    <div class="time">${times[2]}</div>
-                </div>
-            </div>
-            `;
-
-        }catch(error){
-
-            console.log(route,error);
-
-        }
-
-    }
-
-    document.getElementById("updatedAt")
-        .innerHTML =
-        "最後更新：" +
-        new Date().toLocaleTimeString("zh-HK");
-
-}
-
-updateClock();
-
-loadWeather();
-
-loadBus();
-
-setInterval(updateClock,1000);
-setInterval(loadBus,15000);
-setInterval(loadWeather,300000);
-
+window.onerror=function(m,s,l){document.getElementById('updated').innerHTML='JS Error: '+m+' line '+l;return true;};
+var ROUTES=['788','789','8P','82','85','82X'];
+var API='https://rt.data.gov.hk/v2/transport/citybus';
+var routeStopCache={};
+function $(id){return document.getElementById(id);} 
+function pad(v){return v<10?'0'+v:v;}
+function tick(){var n=new Date();$('clock').innerHTML=pad(n.getHours())+':'+pad(n.getMinutes());$('seconds').innerHTML=':'+pad(n.getSeconds());$('date').innerHTML=(n.getMonth()+1)+'/'+n.getDate();}
+function card(r){return '<div class="route-card" id="card-'+r+'"><div class="route">'+r+'</div><div class="dest">藍灣半島開出</div><div><span class="time">--:--</span><span class="time">--:--</span><span class="time">--:--</span></div><div class="status">載入中</div></div>';}
+function initCards(){var h='';for(var i=0;i<ROUTES.length;i++){h+=card(ROUTES[i]);}$('routes').innerHTML=h;}
+async function json(u){var r=await fetch(u);return await r.json();}
+async function firstOutboundStop(route){if(routeStopCache[route])return routeStopCache[route];var d=await json(API+'/route-stop/CTB/'+encodeURIComponent(route)+'/outbound');var first=d.data[0];routeStopCache[route]={stop:first.stop,dir:first.dir||'O'};return routeStopCache[route];}
+function timeText(v){var d=new Date(v);return pad(d.getHours())+':'+pad(d.getMinutes());}
+async function loadOneRoute(route){try{var el=$('card-'+route);var boxes=Array.prototype.slice.call(el.querySelectorAll('.time'));var first=await firstOutboundStop(route);var d=await json(API+'/eta/CTB/'+first.stop+'/'+route);var rows=d.data||[];var times=[];for(var i=0;i<rows.length;i++){if(rows[i].eta){var t=timeText(rows[i].eta);if(times.indexOf(t)<0)times.push(t);}if(times.length>=3)break;}while(times.length<3)times.push('--:--');for(i=0;i<3;i++)boxes[i].innerHTML=times[i];var dest='';if(rows.length&&rows[0]&&rows[0].dest_tc)dest=rows[0].dest_tc;if(dest)el.querySelector('.dest').innerHTML='往 '+dest;el.querySelector('.status').innerHTML='實際開出時間';}catch(e){}}
+async function loadBus(){for(var i=0;i<ROUTES.length;i++){await loadOneRoute(ROUTES[i]);}$('updated').innerHTML='更新 '+new Date().toLocaleTimeString();}
+async function loadWeather(){try{var d=await json('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');if(d.temperature&&d.temperature.data)$('temperature').innerHTML=d.temperature.data[0].value+'°';if(d.humidity&&d.humidity.data)$('humidity').innerHTML='濕度 '+d.humidity.data[0].value+'%';$('weatherStatus').innerHTML='香港天文台';}catch(e){$('weatherStatus').innerHTML='天氣讀取失敗';}}
+async function refreshAll(){await loadWeather();await loadBus();}
+$('refreshBtn').addEventListener('click',refreshAll);
+initCards();tick();loadWeather();loadBus();setInterval(tick,1000);setInterval(loadBus,60000);setInterval(loadWeather,600000);
 </script>
-
-</body>
-</html>
+</body></html>
