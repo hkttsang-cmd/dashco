@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>小西灣 Dashboard</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:#0b0b0b;
+    color:white;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    padding:20px;
+}
+
+.clock{
+    text-align:center;
+    font-size:80px;
+    font-weight:700;
+    margin-top:10px;
+}
+
+.date{
+    text-align:center;
+    color:#aaa;
+    margin-bottom:20px;
+}
+
+.weather{
+    background:#181818;
+    border-radius:20px;
+    padding:20px;
+    margin-bottom:20px;
+}
+
+.weather-title{
+    font-size:28px;
+}
+
+.temp{
+    font-size:64px;
+    font-weight:bold;
+    margin-top:10px;
+}
+
+.weather-info{
+    color:#ccc;
+    margin-top:8px;
+    font-size:20px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:15px;
+}
+
+.card{
+    background:#181818;
+    border-radius:20px;
+    padding:18px;
+}
+
+.route{
+    font-size:42px;
+    font-weight:bold;
+    color:#57d3ff;
+}
+
+.eta{
+    display:flex;
+    justify-content:space-between;
+    margin-top:12px;
+}
+
+.time{
+    font-size:28px;
+    background:#262626;
+    padding:10px 14px;
+    border-radius:12px;
+    min-width:78px;
+    text-align:center;
+}
+
+.updated{
+    text-align:center;
+    color:#888;
+    margin-top:20px;
+}
+
+@media (max-width:768px){
+
+.clock{
+    font-size:64px;
+}
+
+.temp{
+    font-size:56px;
+}
+
+.route{
+    font-size:36px;
+}
+
+.time{
+    font-size:24px;
+}
+
+}
+
+</style>
+</head>
+<body>
+
+<div class="clock" id="clock">--:--</div>
+<div class="date" id="date"></div>
+
+<div class="weather">
+    <div class="weather-title">📍 小西灣</div>
+    <div class="temp" id="temperature">--°C</div>
+    <div class="weather-info" id="humidity">濕度 --%</div>
+</div>
+
+<div class="grid" id="busContainer"></div>
+
+<div class="updated" id="updatedAt">
+等待更新...
+</div>
+
+<script>
+
+const ROUTES = [
+  "788",
+  "789",
+  "8P",
+  "82",
+  "82X",
+  "85"
+];
+
+const STOP_ID = "ISR";
+
+function updateClock(){
+
+    const now = new Date();
+
+    document.getElementById("clock").innerHTML =
+        now.toLocaleTimeString(
+            "zh-HK",
+            {
+                hour:"2-digit",
+                minute:"2-digit"
+            }
+        );
+
+    document.getElementById("date").innerHTML =
+        now.toLocaleDateString("zh-HK",{
+            weekday:"long",
+            year:"numeric",
+            month:"numeric",
+            day:"numeric"
+        });
+
+}
+
+function formatTime(eta){
+
+    if(!eta) return "--";
+
+    return new Date(eta)
+        .toLocaleTimeString(
+            "zh-HK",
+            {
+                hour:"2-digit",
+                minute:"2-digit"
+            }
+        );
+
+}
+
+async function loadWeather(){
+
+    try{
+
+        const response = await fetch(
+        "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc"
+        );
+
+        const data = await response.json();
+
+        const temp =
+            data.temperature.data[1]?.value ||
+            data.temperature.data[0]?.value;
+
+        document.getElementById("temperature")
+            .innerHTML = temp + "°C";
+
+        document.getElementById("humidity")
+            .innerHTML =
+            "濕度 " +
+            data.humidity.data[0].value +
+            "%";
+
+    }catch(e){
+
+        console.log(e);
+
+    }
+
+}
+
+async function loadBus(){
+
+    const container =
+        document.getElementById("busContainer");
+
+    container.innerHTML = "";
+
+    for(const route of ROUTES){
+
+        try{
+
+            const url =
+            `https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${STOP_ID}/${route}`;
+
+            const response =
+                await fetch(url);
+
+            const data =
+                await response.json();
+
+            const times =
+                data.data
+                .filter(x => x.eta)
+                .slice(0,3)
+                .map(x => formatTime(x.eta));
+
+            while(times.length < 3){
+                times.push("--");
+            }
+
+            container.innerHTML += `
+            <div class="card">
+                <div class="route">${route}</div>
+                <div class="eta">
+                    <div class="time">${times[0]}</div>
+                    <div class="time">${times[1]}</div>
+                    <div class="time">${times[2]}</div>
+                </div>
+            </div>
+            `;
+
+        }catch(error){
+
+            console.log(route,error);
+
+        }
+
+    }
+
+    document.getElementById("updatedAt")
+        .innerHTML =
+        "最後更新：" +
+        new Date().toLocaleTimeString("zh-HK");
+
+}
+
+updateClock();
+
+loadWeather();
+
+loadBus();
+
+setInterval(updateClock,1000);
+setInterval(loadBus,15000);
+setInterval(loadWeather,300000);
+
+</script>
+
+</body>
+</html>
